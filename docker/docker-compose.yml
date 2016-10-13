@@ -1,0 +1,75 @@
+version: '2'
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+    - "5672:5672"
+    - "15672:15672"
+    container_name: "rabbitmq"
+    hostname: "rabbitmq"
+  mysql:
+    image: mysql:8.0.0
+    ports:
+    - "3306:3306"
+    container_name: "mysql"
+    hostname: "mysql"
+    environment:
+    - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+  ipam:
+    image: rackhd/ipam:latest
+    container_name: "ipam"
+    hostname: "ipam"
+    ports:
+    - "8000:8000"
+    command: "-mongo ipam-mongo:27017"
+    depends_on:
+    - ipam-mongo
+  ipam-mongo:
+    image: mongo:3.2.10
+    container_name: "ipam-mongo"
+    hostname: "ipam-mongo"
+  voyager-ipam-service:
+    image: rackhd/voyager-ipam-service:0.1.2
+    container_name: "voyager-ipam-service"
+    hostname: "voyager-ipam-service"
+    depends_on:
+    - ipam-mongo
+  voyager-rackhd-service:
+    image: rackhd/voyager-rackhd-service:0.1.2
+    container_name: "voyager-rackhd-service"
+    hostname: "voyager-rackhd-service"
+    depends_on:
+    - rabbitmq
+  voyager-inventory-service:
+    image: rackhd/voyager-inventory-service:0.1.5
+    container_name: "voyager-inventory-service"
+    hostname: "voyager-inventory-service"
+    depends_on:
+    - rabbitmq
+    - mysql
+  voyager-secret-service:
+    image: rackhd/voyager-secret-service:0.1.1
+    container_name: "voyager-secret-service"
+    hostname: "voyager-secret-service"
+    depends_on:
+    - rabbitmq
+  voyager-cisco-engine:
+    image: rackhd/voyager-cisco-engine:0.1.8
+    container_name: "voyager-cisco-engine"
+    hostname: "voyager-cisco-engine"
+    depends_on:
+    - rabbitmq
+  voyager-houston:
+    image: rackhd/voyager-houston:0.1.2
+    ports:
+    - "5000:5000"
+    - "8080:8080"
+    environment:
+    - PORT=8080
+    container_name: "voyager-houston"
+    hostname: "voyager-houston"
+    depends_on:
+    - rabbitmq
+    - voyager-inventory-service
+    - voyager-ipam-service
+    - voyager-rackhd-service

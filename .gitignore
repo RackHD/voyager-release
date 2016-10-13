@@ -1,0 +1,8 @@
+tmp/
+terraform
+ci/tasks/integration-terraform.tf
+ci/tasks/terraform.tfstate*
+vagrant/rackhd/.vagrant/
+vagrant/voyager/.vagrant/
+
+.idea/*

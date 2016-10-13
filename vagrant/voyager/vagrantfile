@@ -1,0 +1,27 @@
+Vagrant.configure(2) do |config|
+  #need to use our base box
+  config.vm.box = "voyager/AcceptanceBase"
+
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 4096
+  end
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  config.vm.network "private_network", ip: "192.168.50.5", auto_config: false
+  config.vm.network "forwarded_port", guest: 15672, host: 15672
+
+  # manual ip
+  config.vm.provision "shell",
+    run: "always",
+    inline: "sudo ifconfig eth1 192.168.50.5 netmask 255.255.255.0 up"
+
+  config.vm.provision "file", source: "../../docker/docker-compose.yml", destination: "docker-compose.yml"
+  config.vm.provision "shell", path: "bootstrap.sh"
+
+  # set auto_update to false, if you do NOT want to check the correct
+  # additions version when booting this machine
+  config.vbguest.auto_update = true
+
+  # do NOT download the iso file from a webserver
+  config.vbguest.no_remote = true
+end

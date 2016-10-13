@@ -1,0 +1,33 @@
+Vagrant.configure("2") do |config|
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://atlas.hashicorp.com/search.
+  config.vm.box = "voyager/rackhd-dev"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  config.vm.network "public_network", auto_config: false
+
+  # manual ip
+  config.vm.provision "shell",
+    run: "always",
+    inline: "sudo ifconfig eth1 172.31.128.1 netmask 255.255.240.0 up"
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  config.vm.network "private_network", ip: "192.168.50.4", auto_config: false
+
+  # manual ip
+  config.vm.provision "shell",
+    run: "always",
+    inline: "sudo ifconfig eth2 192.168.50.4 netmask 255.255.255.0 up"
+
+  config.vm.provision "shell", path: "bootstrap.sh"
+
+  # set auto_update to false, if you do NOT want to check the correct
+  # additions version when booting this machine
+  config.vbguest.auto_update = true
+
+  # do NOT download the iso file from a webserver
+  config.vbguest.no_remote = true
+end

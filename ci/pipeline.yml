@@ -1,0 +1,253 @@
+jobs:
+- name: wats
+  plan:
+  - aggregate:
+    - put: wats-env-pool
+      params: {acquire: true}
+    - get: voyager-build-nodes
+    - get: voyager-release
+    - get: version
+      params: {bump: patch}
+    - get: mcc-release
+      trigger: true
+    - get: voyager-houston-version  
+      trigger: true
+    - get: voyager-inventory-service-version
+      trigger: true
+    - get: voyager-ipam-service-version
+      trigger: true
+    - get: voyager-rackhd-service-version
+      trigger: true
+    - get: voyager-cisco-engine-version
+      trigger: true
+    - get: voyager-secret-service-version
+      trigger: true
+  - put: version
+    params: {file: version/version}
+  - task: windows-acceptance-tests
+    image: voyager-build-nodes
+    config:
+      platform: linux
+      inputs:
+      - name: wats-env-pool
+      - name: voyager-release
+      - name: version
+      - name: mcc-release
+      - name: voyager-houston-version
+      - name: voyager-inventory-service-version
+      - name: voyager-ipam-service-version
+      - name: voyager-rackhd-service-version
+      - name: voyager-cisco-engine-version
+      - name: voyager-secret-service-version
+      outputs:
+      - name: trash
+      params: &acceptance-params
+        ACCEPTANCE_CLUSTER: 		{{acceptance_cluster}}
+        ACCEPTANCE_DATACENTER: 		{{acceptance_datacenter}}
+        ACCEPTANCE_DATASTORE: 		{{acceptance_datastore}}
+        ACCEPTANCE_VSWITCH_NAME: 	{{acceptance_vswitch_name}}
+        ACCEPTANCE_PUBLIC_SUBNET: 	{{acceptance_public_subnet}}
+        ACCEPTANCE_VM_GATEWAY: 		{{acceptance_vm_gateway}}
+        ACCEPTANCE_WINDOWS_SSH_KEY: 	{{acceptance_windows_ssh_key}}
+        ACCEPTANCE_WINDOWS_USER: 	{{acceptance_windows_user}}
+        ACCEPTANCE_WINDOWS_VM_TEMPLATE: {{acceptance_windows_vm_template}}
+        ACCEPTANCE_WINDOWS_IP: 		{{acceptance_windows_ip}}
+        ACCEPTANCE_NODE_VM_TEMPLATE: 	{{acceptance_node_vm_template}}
+        ACCEPTANCE_NODE_VM_COUNT: 	{{acceptance_node_vm_count}}
+        DNS_SERVERS: 			{{dns_servers}}
+        GITHUB_USER:          		{{github_username}}
+        GITHUB_EMAIL:         		{{github_email}}
+        GITHUB_PASSWORD:      		{{github_password}}
+        VSPHERE_PASSWORD:	 	{{vsphere_password}}
+        VSPHERE_SERVER: 		{{vsphere_server}}
+        VSPHERE_USER: 			{{vsphere_user}}
+      run:
+        path: voyager-release/ci/tasks/acceptance-in-windows.sh
+    ensure:
+      do:
+        - put: wats-env-pool
+          params: {remove: wats-env-pool} 
+        - put: wats-trash
+          params: {add: trash} 
+
+
+- name: release
+  serial: true
+  plan:
+  - aggregate:
+    - get: voyager-release
+      passed: [wats]
+    - get: version
+      passed: [wats]
+    - get: mcc-release
+      trigger: true
+      passed: [wats]
+    - get: voyager-houston-version
+      trigger: true
+      passed: [wats]
+    - get: voyager-inventory-service-version
+      trigger: true
+      passed: [wats]
+    - get: voyager-ipam-service-version
+      trigger: true
+      passed: [wats]
+    - get: voyager-rackhd-service-version
+      trigger: true
+      passed: [wats]
+    - get: voyager-cisco-engine-version
+      trigger: true
+      passed: [wats]
+    - get: voyager-secret-service-version
+      trigger: true
+      passed: [wats]
+    - get: concourse-whale
+  - task: promote-release
+    image: concourse-whale
+    config:
+      platform: linux
+      inputs:
+      - name: version
+      - name: voyager-release
+      - name: mcc-release
+      - name: voyager-houston-version
+      - name: voyager-inventory-service-version
+      - name: voyager-ipam-service-version
+      - name: voyager-rackhd-service-version
+      - name: voyager-cisco-engine-version
+      - name: voyager-secret-service-version
+      outputs:
+      - name: promote
+      run:
+        path: voyager-release/ci/tasks/release.sh
+      params:
+        GITHUB_USER:          {{github_username}}
+        GITHUB_EMAIL:         {{github_email}}
+        GITHUB_PASSWORD:      {{github_password}}
+  - put: voyager-release
+    params:
+      repository: promote/voyager-release
+      rebase: true
+  - put: voyager-github-release
+    params:
+      name: promote/name
+      tag: promote/tag
+
+resources:
+################################################################################
+#                                                                              #
+#                               GIT REPOS                                      #
+#                                                                              #
+################################################################################
+- name: voyager-release
+  type: git
+  default-github: &github-secrets
+    username: {{github_username}}
+    password: {{github_password}}
+    skip_ssl_verification: true
+  source:
+    uri: https://github.com/RackHD/voyager-release.git
+    branch: master
+    <<: *github-secrets
+
+- name: voyager-houston-version
+  type: git
+  source:
+    uri: https://github.com/RackHD/voyager-houston.git
+    branch: version
+    <<: *github-secrets
+
+- name: voyager-inventory-service-version
+  type: git
+  source:
+    uri: https://github.com/RackHD/voyager-inventory-service.git
+    branch: version
+    <<: *github-secrets
+
+- name: voyager-secret-service-version
+  type: git
+  source:
+    uri: https://github.com/RackHD/voyager-secret-service.git
+    branch: version
+    <<: *github-secrets
+
+- name: voyager-cisco-engine-version
+  type: git
+  source:
+    uri: https://github.com/RackHD/voyager-cisco-engine.git
+    branch: version
+    <<: *github-secrets
+
+- name: voyager-ipam-service-version
+  type: git
+  source:
+    uri: https://github.com/RackHD/voyager-ipam-service.git
+    branch: version
+    <<: *github-secrets
+
+- name: voyager-rackhd-service-version
+  type: git
+  source:
+    uri: https://github.com/RackHD/voyager-rackhd-service.git
+    branch: version
+    <<: *github-secrets
+
+- name: version
+  type: semver
+  source:
+    driver: git
+    uri: https://github.com/RackHD/voyager-release.git
+    branch: version
+    file: version
+    <<: *github-secrets
+
+- name: wats-env-pool
+  type: pool
+  source:
+    uri: https://github.com/RackHD/voyager-release.git
+    branch: locks
+    pool: wats
+    <<: *github-secrets
+
+- name: wats-trash
+  type: pool
+  source:
+    uri: https://github.com/RackHD/voyager-release.git
+    branch: locks
+    pool: wats-trash
+    <<: *github-secrets
+################################################################################
+#                                                                              #
+#                             RELEASES                                         #
+#                                                                              #
+################################################################################
+- name: voyager-github-release
+  type: github-release
+  source:
+    repository: voyager-release
+    user: {{github_organization}}
+    access_token: {{github_token}}
+
+- name: mcc-release
+  type: s3
+  source:
+    bucket: voyager-cli
+    regexp: voyager-cli-v(.*).zip
+    endpoint: {{minio_endpoint_url}}
+    access_key_id: {{minio_access_key}}
+    secret_access_key: {{minio_secret_key}}
+################################################################################
+#                                                                              #
+#                          DOCKER IMAGES                                       #
+#                                                                              #
+################################################################################
+- name: concourse-whale
+  type: docker-image
+  source:
+    repository: {{concourse_whale_repository}}
+    insecure_registries: [{{docker_insecure_registries}}]
+
+- name: voyager-build-nodes
+  type: docker-image
+  source:
+    repository: {{voyager_build_nodes_repository}}
+    insecure_registries: [{{docker_insecure_registries}}]

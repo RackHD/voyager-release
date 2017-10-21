@@ -24,7 +24,7 @@ Follow the default instructions in the installer. This process will disconnect y
 
 
 ### Vagrant
-Go to the [Vagrant Download Page](https://www.vagrantup.com/downloads.html). Click on the link for *Windows Univeral (32 and 64-bit)*. This will download the Vagrant installer for the latest version (currently 1.9.0).
+Go to the [Vagrant Download Page](https://www.vagrantup.com/downloads.html). Click on the link for *Windows Universal (32 and 64-bit)*. This will download the Vagrant installer for the latest version (currently 1.9.0).
 
 
 When the installer downloads, run it. Follow the default instructions to install Vagrant. When the installer prompts you to restart your computer, click Yes to finish the installation.
